@@ -1,0 +1,21 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# Secrets (NEVER commit these)
+.env
+*.pem
+credentials.json
+
+# Build artifacts
+outputs/
+*.pptx

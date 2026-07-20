@@ -1,0 +1,156 @@
+# ============================================================================
+# GitHub Actions CI/CD Workflow for Snowflake + Airflow
+# ============================================================================
+# This file lives at: .github/workflows/deploy.yml
+#
+# WHAT IT DOES:
+#   On every Pull Request:  validates SQL files (CI)
+#   On merge to main:       deploys migrations to Snowflake via schemachange (CD)
+#
+# HOW IT WORKS:
+#   1. GitHub detects a push/PR event
+#   2. Spins up a clean Ubuntu runner (a temporary VM in the cloud)
+#   3. Checks out your repo code
+#   4. Installs Python + schemachange
+#   5. Runs schemachange, which connects to Snowflake using secrets you stored
+#   6. schemachange compares /snowflake/ folder to CHANGE_HISTORY table
+#   7. Only runs NEW migrations that haven't been deployed yet
+# ============================================================================
+
+name: Snowflake CI/CD
+
+# ── TRIGGERS ──────────────────────────────────────────────────────────────────
+# "on" defines WHEN this workflow runs.
+on:
+  # Run on pull requests targeting main (for validation/CI)
+  pull_request:
+    branches: [main]
+    paths:
+      - 'snowflake/**'    # Only trigger if SQL files changed
+      - 'dags/**'         # Or if DAG files changed
+
+  # Run on push to main (for deployment/CD) — this happens after a PR merge
+  push:
+    branches: [main]
+    paths:
+      - 'snowflake/**'
+      - 'dags/**'
+
+# ── JOBS ──────────────────────────────────────────────────────────────────────
+# Jobs are the units of work. They run on separate VMs.
+jobs:
+
+  # ╔═══════════════════════════════════════════════════════════════════════════╗
+  # ║  JOB 1: VALIDATE (runs on PRs)                                          ║
+  # ║  Checks that SQL files are valid before allowing merge                   ║
+  # ╚═══════════════════════════════════════════════════════════════════════════╝
+  validate:
+    name: Validate SQL
+    runs-on: ubuntu-latest           # Use a fresh Ubuntu VM
+    if: github.event_name == 'pull_request'   # Only on PRs, not pushes
+
+    steps:
+      # Step 1: Get the code
+      - name: Checkout repository
+        uses: actions/checkout@v4    # GitHub's official checkout action
+
+      # Step 2: Install Python (schemachange needs it)
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      # Step 3: Install schemachange
+      - name: Install schemachange
+        run: pip install schemachange
+
+      # Step 4: Dry-run schemachange (validates SQL without executing)
+      - name: Validate migrations (dry run)
+        env:
+          SNOWFLAKE_ACCOUNT: ${{ secrets.SNOWFLAKE_ACCOUNT }}
+          SNOWFLAKE_USER: ${{ secrets.SNOWFLAKE_USER }}
+          SNOWFLAKE_PASSWORD: ${{ secrets.SNOWFLAKE_PASSWORD }}
+          SNOWFLAKE_WAREHOUSE: ${{ secrets.SNOWFLAKE_WAREHOUSE }}
+          SNOWFLAKE_DATABASE: ${{ secrets.SNOWFLAKE_DATABASE }}
+          SNOWFLAKE_ROLE: ${{ secrets.SNOWFLAKE_ROLE }}
+        run: |
+          echo "✓ SQL migration files found:"
+          ls -la snowflake/
+          echo ""
+          echo "✓ Validating file naming convention (V*.sql)..."
+          for f in snowflake/*.sql; do
+            if [[ ! "$f" =~ ^snowflake/V[0-9]+\.[0-9]+\.[0-9]+__ ]]; then
+              echo "ERROR: $f does not match naming convention V{major}.{minor}.{patch}__{description}.sql"
+              exit 1
+            fi
+          done
+          echo "✓ All migration files have valid names"
+          echo ""
+          echo "✓ Running schemachange dry-run..."
+          schemachange deploy \
+            --root-folder snowflake \
+            --snowflake-account "$SNOWFLAKE_ACCOUNT" \
+            --snowflake-user "$SNOWFLAKE_USER" \
+            --snowflake-warehouse "$SNOWFLAKE_WAREHOUSE" \
+            --snowflake-database "$SNOWFLAKE_DATABASE" \
+            --snowflake-role "$SNOWFLAKE_ROLE" \
+            --change-history-table CICD_DEMO.RAW.CHANGE_HISTORY \
+            --dry-run
+        # --dry-run means: show what WOULD be deployed, but don't actually run it
+
+  # ╔═══════════════════════════════════════════════════════════════════════════╗
+  # ║  JOB 2: DEPLOY (runs on merge to main)                                  ║
+  # ║  Actually deploys SQL migrations to Snowflake                            ║
+  # ╚═══════════════════════════════════════════════════════════════════════════╝
+  deploy:
+    name: Deploy to Snowflake
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install schemachange
+        run: pip install schemachange
+
+      # THE MAIN EVENT: Deploy new migrations to Snowflake
+      - name: Deploy SQL migrations
+        env:
+          SNOWFLAKE_ACCOUNT: ${{ secrets.SNOWFLAKE_ACCOUNT }}
+          SNOWFLAKE_USER: ${{ secrets.SNOWFLAKE_USER }}
+          SNOWFLAKE_PASSWORD: ${{ secrets.SNOWFLAKE_PASSWORD }}
+          SNOWFLAKE_WAREHOUSE: ${{ secrets.SNOWFLAKE_WAREHOUSE }}
+          SNOWFLAKE_DATABASE: ${{ secrets.SNOWFLAKE_DATABASE }}
+          SNOWFLAKE_ROLE: ${{ secrets.SNOWFLAKE_ROLE }}
+        run: |
+          echo "🚀 Deploying SQL migrations to Snowflake..."
+          schemachange deploy \
+            --root-folder snowflake \
+            --snowflake-account "$SNOWFLAKE_ACCOUNT" \
+            --snowflake-user "$SNOWFLAKE_USER" \
+            --snowflake-warehouse "$SNOWFLAKE_WAREHOUSE" \
+            --snowflake-database "$SNOWFLAKE_DATABASE" \
+            --snowflake-role "$SNOWFLAKE_ROLE" \
+            --change-history-table CICD_DEMO.RAW.CHANGE_HISTORY \
+            --create-change-history-table
+          echo "✓ Snowflake migrations deployed successfully"
+        # --create-change-history-table: creates the tracking table on first run
+
+      # SIMULATED: In a real setup, this would sync DAGs to Airflow
+      - name: Simulate Airflow DAG deployment
+        run: |
+          echo "📋 DAG files that would be deployed to Airflow:"
+          ls -la dags/
+          echo ""
+          echo "In production, this step would:"
+          echo "  - aws s3 sync dags/ s3://your-airflow-bucket/dags/"
+          echo "  - OR: copy to Astronomer deploy target"
+          echo "  - OR: push to Cloud Composer GCS bucket"
+          echo ""
+          echo "✓ DAG deployment step complete (simulated)"
