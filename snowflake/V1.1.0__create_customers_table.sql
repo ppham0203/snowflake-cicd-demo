@@ -1,6 +1,7 @@
 -- Migration: V1.1.0
 -- Description: Create CUSTOMERS table in RAW schema
 -- Author: Peter Pham
+-- Deployed via: schemachange + GitHub Actions
 
 CREATE TABLE IF NOT EXISTS RAW.CUSTOMERS (
     customer_id     INTEGER AUTOINCREMENT,
