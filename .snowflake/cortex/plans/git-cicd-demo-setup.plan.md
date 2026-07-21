@@ -1,3 +1,9 @@
+---
+name: "git cicd demo setup"
+created: "2026-07-20T22:55:02.656Z"
+status: pending
+---
+
 # Plan: End-to-End Git + CI/CD Demo Setup
 
 ## Overview
@@ -28,6 +34,7 @@ All files go in `/Users/peterpham/projects/Enablement/Git_CICD/`.
 ```
 
 **Key decisions:**
+
 - **schemachange** will be the migration tool (open-source Python tool by Snowflake)
 - **GitHub Actions** will install schemachange via `pip` and run it on merge to `main`
 - **DAG deployment** will be simulated — the workflow echoes "DAG sync would go here" (no live Airflow)
@@ -46,6 +53,7 @@ All files go in `/Users/peterpham/projects/Enablement/Git_CICD/`.
 ## Phase 3: Create Snowflake Objects for the Demo
 
 Run these in Snowflake:
+
 ```sql
 CREATE DATABASE IF NOT EXISTS CICD_DEMO;
 CREATE SCHEMA IF NOT EXISTS CICD_DEMO.RAW;
@@ -62,6 +70,7 @@ schemachange will auto-create its tracking table (`CHANGE_HISTORY`) on first run
 This lets Snowflake *pull* files directly from the GitHub repo (useful for executing scripts from within Snowflake, independent of CI/CD).
 
 **Steps:**
+
 1. Generate a GitHub Personal Access Token (PAT) with `repo` scope
 2. Store it in Snowflake:
    ```sql
@@ -94,14 +103,14 @@ This lets Snowflake *pull* files directly from the GitHub repo (useful for execu
 
 On the GitHub repo, store these secrets (via `gh secret set`):
 
-| Secret Name | Value |
-|---|---|
-| `SNOWFLAKE_ACCOUNT` | `SFSENORTHAMERICA-PPHAM_AWS1` |
-| `SNOWFLAKE_USER` | `PEPHAM` |
-| `SNOWFLAKE_PASSWORD` | Your Snowflake password (or we can use key-pair auth) |
-| `SNOWFLAKE_WAREHOUSE` | `AIRFLOW_WH` |
-| `SNOWFLAKE_DATABASE` | `CICD_DEMO` |
-| `SNOWFLAKE_ROLE` | `ACCOUNTADMIN` (or a dedicated deploy role) |
+| Secret Name           | Value                                                 |
+| --------------------- | ----------------------------------------------------- |
+| `SNOWFLAKE_ACCOUNT`   | `SFSENORTHAMERICA-PPHAM_AWS1`                         |
+| `SNOWFLAKE_USER`      | `PEPHAM`                                              |
+| `SNOWFLAKE_PASSWORD`  | Your Snowflake password (or we can use key-pair auth) |
+| `SNOWFLAKE_WAREHOUSE` | `AIRFLOW_WH`                                          |
+| `SNOWFLAKE_DATABASE`  | `CICD_DEMO`                                           |
+| `SNOWFLAKE_ROLE`      | `ACCOUNTADMIN` (or a dedicated deploy role)           |
 
 ---
 
