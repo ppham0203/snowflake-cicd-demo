@@ -619,72 +619,107 @@
         <span class="slide-duration">~7 min</span>
       </div>
       <div class="slide-body">
-        <p><strong>Before starting:</strong> Run <code>./scripts/demo-reset.sh</code> in your terminal, then run the two SQL lines it prints in Snowsight. Then have your terminal, GitHub, and Snowsight open in separate windows/tabs.</p>
+        <div style="background:light-dark(#fef2f2,#2d0808); border:1px solid light-dark(#fca5a5,#7f1d1d); border-radius:8px; padding:14px 18px; margin-bottom:16px;">
+          <strong style="color:light-dark(#991b1b,#fca5a5);">PRE-DEMO CHECKLIST (do this 5 minutes before going live):</strong>
+          <ol style="margin:8px 0 0 16px; font-size:0.85rem;">
+            <li>Open <strong>Terminal</strong> and run: <code>cd /Users/peterpham/projects/Enablement/Git_CICD && git checkout main && git pull</code></li>
+            <li>Open <strong>GitHub</strong> in browser: <a href="https://github.com/ppham0203/snowflake-cicd-demo">github.com/ppham0203/snowflake-cicd-demo</a></li>
+            <li>Open <strong>Snowsight</strong> on account SFSENORTHAMERICA-PPHAM_AWS1, role ACCOUNTADMIN</li>
+            <li>Arrange windows: Terminal left, Browser right. Snowsight in another tab.</li>
+            <li>Verify in terminal: <code>ls snowflake/</code> should show ONLY V1.0.0, V1.1.0, V1.2.0 (no V2.0.0)</li>
+          </ol>
+        </div>
+
+        <h3 style="margin:20px 0 8px; font-size:0.95rem; color:light-dark(#0f172a,#f1f5f9);">THE DEMO (do these in order, exactly as written)</h3>
 
         <div class="action-block">
           <div class="label">⌨️ Step 1 — Terminal <span class="where where-terminal">Terminal</span></div>
-          <pre>cat &gt; snowflake/V2.0.0__add_email_to_customers.sql &lt;&lt; 'EOF'
+          Type these 4 lines exactly:
+          <pre>cat > snowflake/V2.0.0__add_email_to_customers.sql &lt;&lt; 'EOF'
 -- Migration: V2.0.0
+-- Add email column to CUSTOMERS table
 ALTER TABLE RAW.CUSTOMERS ADD COLUMN IF NOT EXISTS email VARCHAR(255);
 EOF</pre>
         </div>
         <div class="talk-track">
-          <div class="label">🎤 While typing</div>
-          I'm creating a new migration file. Notice I'm not running any SQL. I'm just writing a file with a version number. The pipeline handles execution.
+          <div class="label">🎤 Say while typing</div>
+          I'm writing a migration file. Notice: I am NOT running any SQL against Snowflake. I'm just creating a file with a version number. The automation handles everything else.
         </div>
 
         <div class="action-block">
           <div class="label">⌨️ Step 2 — Terminal <span class="where where-terminal">Terminal</span></div>
+          Type these 5 lines exactly (copy-paste is fine):
           <pre>git checkout -b feature/add-email-column
 git add snowflake/V2.0.0__add_email_to_customers.sql
 git commit -m "Add email column to customers table"
 git push origin feature/add-email-column
-gh pr create --title "Add email column" --body "Adds email to CUSTOMERS"</pre>
+gh pr create --title "Add email column to customers" --body "Adds email VARCHAR(255) to RAW.CUSTOMERS table"</pre>
+          <p style="font-size:0.8rem; margin-top:6px; color:light-dark(#64748b,#94a3b8);">The last command will print a PR URL. It will also say "checks are running" or similar.</p>
         </div>
         <div class="talk-track">
-          <div class="label">🎤 While pushing</div>
-          I've pushed to a feature branch. Nothing is deployed yet. Now I'll open a Pull Request — show the GitHub PR page. Notice CI is already running. That's the Validate job checking my file names. It's automatic.
+          <div class="label">🎤 Say after the push</div>
+          I've pushed to a feature branch and opened a Pull Request. Nothing touches production yet. The CI pipeline is already validating my SQL file naming in the background. Let me show you.
         </div>
 
         <div class="action-block">
           <div class="label">🌐 Step 3 — Browser <span class="where where-browser">Browser</span></div>
-          Switch to GitHub in the browser. Show the PR with the green check. Then merge it.
-          <pre>gh pr merge --merge   # or click Merge on GitHub</pre>
+          <ol style="font-size:0.85rem; margin:6px 0 0 16px;">
+            <li>Switch to your browser with GitHub open</li>
+            <li>Click the PR link that was printed in the terminal (or go to: <a href="https://github.com/ppham0203/snowflake-cicd-demo/pulls">github.com/ppham0203/snowflake-cicd-demo/pulls</a>)</li>
+            <li>Point out the yellow "checks running" indicator at the bottom of the PR</li>
+            <li>Wait ~15 seconds for the green check to appear</li>
+            <li>Click the green <strong>"Merge pull request"</strong> button</li>
+            <li>Click <strong>"Confirm merge"</strong></li>
+          </ol>
         </div>
         <div class="talk-track">
-          <div class="label">🎤 After merging</div>
-          The merge to main just triggered the Deploy job. Let's watch it.
+          <div class="label">🎤 Say while on the PR page</div>
+          See the check? That's GitHub Actions validating that my migration file follows the naming convention. In a real team, a colleague would review this before we merge. Now watch — the moment I click Merge, the deploy pipeline fires.
         </div>
 
         <div class="action-block">
           <div class="label">🌐 Step 4 — Browser <span class="where where-browser">Browser</span></div>
-          Switch to the Actions tab on GitHub: <a href="https://github.com/ppham0203/snowflake-cicd-demo/actions">github.com/ppham0203/snowflake-cicd-demo/actions</a><br>
-          Watch the "Deploy to Snowflake" job complete. Point out each step as it runs.
+          <ol style="font-size:0.85rem; margin:6px 0 0 16px;">
+            <li>Click the <strong>"Actions"</strong> tab at the top of the repo</li>
+            <li>You'll see a new workflow run appear (yellow spinning icon)</li>
+            <li>Click into it to watch the steps</li>
+            <li>Point out: "Write private key file" → "Deploy SQL migrations" → "Simulate Airflow DAG deployment"</li>
+            <li>Wait for the green checkmark (~30 seconds)</li>
+          </ol>
+        </div>
+        <div class="talk-track">
+          <div class="label">🎤 Say while watching Actions</div>
+          Here's what's happening: GitHub spun up a clean VM, installed Python and schemachange, wrote the RSA private key from our encrypted secrets, and is now connecting to Snowflake. schemachange checks the CHANGE_HISTORY table, sees that V2.0.0 is new, and runs it. Let's go verify.
         </div>
 
         <div class="action-block">
           <div class="label">❄️ Step 5 — Snowsight <span class="where where-snowflake">Snowsight</span></div>
-          Open Snowsight and run:
-          <pre>DESCRIBE TABLE CICD_DEMO.RAW.CUSTOMERS;</pre>
-          Then show the audit trail:
-          <pre>SELECT VERSION, SCRIPT, STATUS, INSTALLED_ON
+          Switch to the Snowsight tab. Run these two queries:
+          <pre>-- Query 1: Verify the new column exists
+DESCRIBE TABLE CICD_DEMO.RAW.CUSTOMERS;
+
+-- Query 2: Show the full migration audit trail
+SELECT VERSION, SCRIPT, STATUS, INSTALLED_ON
 FROM CICD_DEMO.RAW.CHANGE_HISTORY
 ORDER BY INSTALLED_ON;</pre>
+          <p style="font-size:0.8rem; margin-top:6px; color:light-dark(#64748b,#94a3b8);"><strong>Expected result:</strong> DESCRIBE shows 5 columns (including EMAIL). CHANGE_HISTORY shows 4 rows with V2.0.0 as the newest.</p>
         </div>
         <div class="talk-track">
-          <div class="label">🎤 At the end of the demo</div>
-          The EMAIL column is live. No one logged into Snowflake and ran ALTER TABLE. No one copy-pasted SQL between environments. It took less than 60 seconds from commit to production, and we have a complete audit trail in the CHANGE_HISTORY table that shows exactly what ran, when, and with what version.
+          <div class="label">🎤 Say — this is the big payoff</div>
+          There it is. The EMAIL column is live in production. Nobody logged into Snowflake. Nobody ran ALTER TABLE manually. Nobody copy-pasted between environments. One Pull Request, one merge, and 30 seconds later it's in production with a full audit trail showing exactly what ran, when, and at what version. That's the power of CI/CD for your data platform.
         </div>
 
+        <div style="border-top:1px dashed light-dark(#e2e8f0,#334155); margin:20px 0; padding-top:16px;">
+          <p style="font-size:0.85rem; color:light-dark(#64748b,#94a3b8);"><strong>BONUS (only if time permits):</strong> Show Snowflake's native Git integration</p>
+        </div>
         <div class="action-block">
           <div class="label">❄️ Bonus — Snowsight <span class="where where-snowflake">Snowsight</span></div>
-          <pre>-- In Snowsight:
-ALTER GIT REPOSITORY CICD_DEMO.RAW.CICD_REPO FETCH;
+          <pre>ALTER GIT REPOSITORY CICD_DEMO.RAW.CICD_REPO FETCH;
 LS @CICD_DEMO.RAW.CICD_REPO/branches/main/;</pre>
         </div>
         <div class="talk-track">
-          <div class="label">🎤 For the bonus</div>
-          And here's the native Snowflake side. Snowflake can see every file in the repo directly. You can list them, execute them, or reference them from a Snowflake Task. This is how you'd deploy stored procedures or run ad-hoc scripts without leaving Snowflake.
+          <div class="label">🎤 Say for the bonus</div>
+          One more thing. Snowflake also has a native Git integration — it can see and execute files directly from your repo without any CI/CD. This is complementary. Use it for ad-hoc operations, Snowflake Tasks, or debugging. The CI/CD pipeline handles the structured deployments, and this handles everything else.
         </div>
       </div>
     </div>
