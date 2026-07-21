@@ -1,6 +1,7 @@
 -- Migration: V1.2.0
 -- Description: Create a simple ORDERS table and a customer orders view
 -- Author: Peter Pham
+-- Deployed via: schemachange + GitHub Actions
 
 CREATE TABLE IF NOT EXISTS RAW.ORDERS (
     order_id        INTEGER AUTOINCREMENT,
