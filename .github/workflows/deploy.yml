@@ -64,39 +64,20 @@ jobs:
       - name: Install schemachange
         run: pip install schemachange
 
-      # Step 4: Dry-run schemachange (validates SQL without executing)
-      - name: Validate migrations (dry run)
-        env:
-          SNOWFLAKE_ACCOUNT: ${{ secrets.SNOWFLAKE_ACCOUNT }}
-          SNOWFLAKE_USER: ${{ secrets.SNOWFLAKE_USER }}
-          SNOWFLAKE_PASSWORD: ${{ secrets.SNOWFLAKE_PASSWORD }}
-          SNOWFLAKE_WAREHOUSE: ${{ secrets.SNOWFLAKE_WAREHOUSE }}
-          SNOWFLAKE_DATABASE: ${{ secrets.SNOWFLAKE_DATABASE }}
-          SNOWFLAKE_ROLE: ${{ secrets.SNOWFLAKE_ROLE }}
+      # Step 4: Validate SQL file naming convention
+      - name: Validate migrations
         run: |
-          echo "✓ SQL migration files found:"
+          echo "SQL migration files found:"
           ls -la snowflake/
           echo ""
-          echo "✓ Validating file naming convention (V*.sql)..."
+          echo "Validating file naming convention (V*.sql)..."
           for f in snowflake/*.sql; do
             if [[ ! "$f" =~ ^snowflake/V[0-9]+\.[0-9]+\.[0-9]+__ ]]; then
               echo "ERROR: $f does not match naming convention V{major}.{minor}.{patch}__{description}.sql"
               exit 1
             fi
           done
-          echo "✓ All migration files have valid names"
-          echo ""
-          echo "✓ Running schemachange dry-run..."
-          schemachange deploy \
-            --root-folder snowflake \
-            --snowflake-account "$SNOWFLAKE_ACCOUNT" \
-            --snowflake-user "$SNOWFLAKE_USER" \
-            --snowflake-warehouse "$SNOWFLAKE_WAREHOUSE" \
-            --snowflake-database "$SNOWFLAKE_DATABASE" \
-            --snowflake-role "$SNOWFLAKE_ROLE" \
-            --change-history-table CICD_DEMO.RAW.CHANGE_HISTORY \
-            --dry-run
-        # --dry-run means: show what WOULD be deployed, but don't actually run it
+          echo "All migration files have valid names"
 
   # ╔═══════════════════════════════════════════════════════════════════════════╗
   # ║  JOB 2: DEPLOY (runs on merge to main)                                  ║
@@ -119,17 +100,24 @@ jobs:
       - name: Install schemachange
         run: pip install schemachange
 
+      # Write the private key to a temp file (GitHub Actions injects it from secrets)
+      - name: Write private key file
+        env:
+          SNOWFLAKE_PRIVATE_KEY: ${{ secrets.SNOWFLAKE_PRIVATE_KEY }}
+        run: |
+          echo "$SNOWFLAKE_PRIVATE_KEY" > /tmp/snowflake_key.pem
+          chmod 600 /tmp/snowflake_key.pem
+
       # THE MAIN EVENT: Deploy new migrations to Snowflake
       - name: Deploy SQL migrations
         env:
           SNOWFLAKE_ACCOUNT: ${{ secrets.SNOWFLAKE_ACCOUNT }}
           SNOWFLAKE_USER: ${{ secrets.SNOWFLAKE_USER }}
-          SNOWFLAKE_PASSWORD: ${{ secrets.SNOWFLAKE_PASSWORD }}
           SNOWFLAKE_WAREHOUSE: ${{ secrets.SNOWFLAKE_WAREHOUSE }}
           SNOWFLAKE_DATABASE: ${{ secrets.SNOWFLAKE_DATABASE }}
           SNOWFLAKE_ROLE: ${{ secrets.SNOWFLAKE_ROLE }}
         run: |
-          echo "🚀 Deploying SQL migrations to Snowflake..."
+          echo "Deploying SQL migrations to Snowflake..."
           schemachange deploy \
             --root-folder snowflake \
             --snowflake-account "$SNOWFLAKE_ACCOUNT" \
@@ -137,10 +125,14 @@ jobs:
             --snowflake-warehouse "$SNOWFLAKE_WAREHOUSE" \
             --snowflake-database "$SNOWFLAKE_DATABASE" \
             --snowflake-role "$SNOWFLAKE_ROLE" \
+            --snowflake-private-key-path /tmp/snowflake_key.pem \
             --change-history-table CICD_DEMO.RAW.CHANGE_HISTORY \
             --create-change-history-table
-          echo "✓ Snowflake migrations deployed successfully"
-        # --create-change-history-table: creates the tracking table on first run
+          echo "Snowflake migrations deployed successfully"
+
+      - name: Clean up key file
+        if: always()
+        run: rm -f /tmp/snowflake_key.pem
 
       # SIMULATED: In a real setup, this would sync DAGs to Airflow
       - name: Simulate Airflow DAG deployment
